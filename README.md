@@ -166,3 +166,5 @@ goodgen | 88.6 | 91.0 | 89.4 | 83.3 | 76.4
 we have higner iden rate but the generated images are really ugly.
 
 Good iden rate doesn't mean good generatation, we can see the comparision in snapshot file.
+
+some models: [bestmodel in baidudisk](https://pan.baidu.com/s/1skEVB2X) password: bc97
