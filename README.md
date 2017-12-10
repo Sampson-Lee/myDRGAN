@@ -167,4 +167,5 @@ we have higner iden rate but the generated images are really ugly.
 
 Good iden rate doesn't mean good generatation, we can see the comparision in snapshot file.
 
-some models: [bestmodel in baidudisk](https://pan.baidu.com/s/1skEVB2X) password: bc97
+## model
+some models to download: [bestmodel in baidudisk](https://pan.baidu.com/s/1skEVB2X) password: bc97
