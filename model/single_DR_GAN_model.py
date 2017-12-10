@@ -15,12 +15,12 @@ class Discriminator(nn.Module):
 
     """
 
-    def __init__(self, Nd, Np, channel_num):
+    def __init__(self, args):
         super(Discriminator, self).__init__()
-        convLayers = [
-            nn.Conv2d(channel_num, 32, 3, 1, 1, bias=False), # Bxchx96x96 -> Bx32x96x96
+        D_enc_convLayers = [
+            nn.Conv2d(args.channel_num, 32, 3, 1, 1, bias=False), # Bxchx96x96 -> Bx32x96x96
             nn.BatchNorm2d(32),
-            nn.ELU(), # why not ReLU
+            nn.ELU(), 
             nn.Conv2d(32, 64, 3, 1, 1, bias=False), # Bx32x96x96 -> Bx64x96x96
             nn.BatchNorm2d(64),
             nn.ELU(),
@@ -61,26 +61,19 @@ class Discriminator(nn.Module):
             nn.Conv2d(256, 160, 3, 1, 1, bias=False), # Bx256x6x6 -> Bx160x6x6
             nn.BatchNorm2d(160),
             nn.ELU(),
-            nn.Conv2d(160, 320, 3, 1, 1, bias=False), # Bx160x6x6 -> Bx320x6x6
-            nn.BatchNorm2d(320),
+            nn.Conv2d(160, args.Nf, 3, 1, 1, bias=False), # Bx160x6x6 -> Bx320x6x6
+            nn.BatchNorm2d(args.Nf),
             nn.ELU(),
             nn.AvgPool2d(6, stride=1), #  Bx320x6x6 -> Bx320x1x1
         ]
 
-        self.convLayers = nn.Sequential(*convLayers)
-        self.fc = nn.Linear(320, Nd+1+Np) # iden, gan, pose
-
-        # 重みは全て N(0, 0.02) で初期化
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                m.weight.data.normal_(0, 0.02)
-
-            elif isinstance(m, nn.Linear):
-                m.weight.data.normal_(0, 0.02)
+        self.D_enc_convLayers = nn.Sequential(*D_enc_convLayers)
+        
+        self.fc = nn.Linear(args.Nf, args.Nd+args.Np+1)
 
     def forward(self, input):
         # 畳み込み -> 平均プーリングの結果 B x 320 x 1 x 1の出力を得る
-        x = self.convLayers(input)
+        x = self.D_enc_convLayers(input)
 
         # バッチ数次元を消さないように１次元の次元を削除　
         x = x.squeeze(2)
@@ -121,13 +114,13 @@ class Generator(nn.Module):
     ### init
     Np : Dimension of pose vector (Corresponds to number of dicrete pose classes of the data)
     Nz : Dimension of noise vector
-
+    Nf : Dimension of features
     """
 
-    def __init__(self, Np, Nz, channel_num):
+    def __init__(self, args):
         super(Generator, self).__init__()
         G_enc_convLayers = [
-            nn.Conv2d(channel_num, 32, 3, 1, 1, bias=False), # Bxchx96x96 -> Bx32x96x96
+            nn.Conv2d(args.channel_num, 32, 3, 1, 1, bias=False), # Bxchx96x96 -> Bx32x96x96
             nn.BatchNorm2d(32),
             nn.ELU(),
             nn.Conv2d(32, 64, 3, 1, 1, bias=False), # Bx32x96x96 -> Bx64x96x96
@@ -170,8 +163,8 @@ class Generator(nn.Module):
             nn.Conv2d(256, 160, 3, 1, 1, bias=False), # Bx256x6x6 -> Bx160x6x6
             nn.BatchNorm2d(160),
             nn.ELU(),
-            nn.Conv2d(160, 320, 3, 1, 1, bias=False), # Bx160x6x6 -> Bx320x6x6, Nf=320
-            nn.BatchNorm2d(320),
+            nn.Conv2d(160, args.Nf, 3, 1, 1, bias=False), # Bx160x6x6 -> Bx320x6x6, Nf=320
+            nn.BatchNorm2d(args.Nf),
             nn.ELU(),
             nn.AvgPool2d(6, stride=1), #  Bx320x6x6 -> Bx320x1x1
 
@@ -179,7 +172,7 @@ class Generator(nn.Module):
         self.G_enc_convLayers = nn.Sequential(*G_enc_convLayers)
 
         G_dec_convLayers = [
-            nn.ConvTranspose2d(320,160, 3,1,1, bias=False), # Bx320x6x6 -> Bx160x6x6
+            nn.ConvTranspose2d(args.Nf, 160, 3,1,1, bias=False), # Bx320x6x6 -> Bx160x6x6
             nn.BatchNorm2d(160),
             nn.ELU(),
             nn.ConvTranspose2d(160, 256, 3,1,1, bias=False), # Bx160x6x6 -> Bx256x6x6
@@ -222,24 +215,13 @@ class Generator(nn.Module):
             nn.ConvTranspose2d(64, 32,  3,1,1, bias=False), # Bx64x96x96 -> Bx32x96x96
             nn.BatchNorm2d(32),
             nn.ELU(),
-            nn.ConvTranspose2d(32, channel_num,  3,1,1, bias=False), # Bx32x96x96 -> Bxchx96x96
+            nn.ConvTranspose2d(32, args.channel_num,  3,1,1, bias=False), # Bx32x96x96 -> Bxchx96x96
             nn.Tanh(),
         ]
 
         self.G_dec_convLayers = nn.Sequential(*G_dec_convLayers)
 
-        self.G_dec_fc = nn.Linear(320+Np+Nz, 320*6*6)
-
-        # 重みは全て N(0, 0.02) で初期化
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                m.weight.data.normal_(0, 0.02)
-
-            elif isinstance(m, nn.ConvTranspose2d):
-                m.weight.data.normal_(0, 0.02)
-
-            elif isinstance(m, nn.Linear):
-                m.weight.data.normal_(0, 0.02)
+        self.G_dec_fc = nn.Linear(args.Nf+args.Np+args.Nz, args.Nf*6*6)
 
     def forward(self, input, pose=None, noise=None, extract=False):
         x = self.G_enc_convLayers(input) # Bxchx96x96 -> Bx320x1x1
@@ -253,3 +235,4 @@ class Generator(nn.Module):
         x = x.view(-1, 320, 6, 6) # B x (320x6x6) -> B x 320 x 6 x 6
         x = self.G_dec_convLayers(x) #  B x 320 x 6 x 6 -> Bxchx96x96
         return x
+

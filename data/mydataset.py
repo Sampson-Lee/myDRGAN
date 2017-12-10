@@ -3,6 +3,10 @@
 Created on Tue Nov 14 17:20:13 2017
 
 @author: Sampson
+
+1. use it to create image list for dataloader
+2. modify to set porper preprocess and provide dataloader iterator for training 
+
 """
 import torch
 import numpy as np
@@ -11,45 +15,50 @@ from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
-data_source='/data5/lixinpeng/dataset/multiPIE/train/'
-
 channel_num = 3
-img_size = (96,96)
+img_size = 96
+Nd=0
+Np=0
+Nz=50
 
 pose_labels_dict = {
              '041':0,'050':1,'051':2,
              '080':3,'090':4,'130':5,
              '140':6,'190':7,'200':8}
 
-multiPLE_transform = transforms.Compose([
-#                                   transforms.Scale(img_size),
-#                                   transforms.CenterCrop(img_size),
-                                   transforms.ToTensor(),
-                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                               ])
+default_transform = transforms.Compose([
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ])
 
 randomData_transform = transforms.Compose([
                                    transforms.ToTensor(),
                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                                ])
 
-eval_transform = transforms.Compose([
-#                                   transforms.Scale(img_size),
-#                                   transforms.CenterCrop(img_size),
-                                   transforms.ToTensor(),
-                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                               ])
+multiPIE_train_transform = transforms.Compose([
+                            transforms.CenterCrop(160),
+                            transforms.Scale(img_size),
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ])
+
+multiPIE_test_transform = transforms.Compose([
+                            transforms.CenterCrop(160),
+                            transforms.Scale(img_size),
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ])
 
 def img_loader(img_path):
     img = Image.open(img_path)
-    w, h = img.size
-    th, tw = (150, 150)
-    left = int(round((w - tw) / 2.))
-    upper = int(round((h - th) / 2.))
-    img = img.crop((left, upper, left + tw, upper + th)) # aligning faces is important
-    img = img.resize((96, 96))
-    arr = np.array(img)
-    return arr
+    # w, h = img.size
+    # th, tw = (160, 160)
+    # left = int(round((w - tw) / 2.))
+    # upper = int(round((h - th) / 2.))
+    # img = img.crop((left, upper, left + tw, upper + th)) # aligning faces is important
+    # img = img.resize((110, 110))
+    return img
 
 #data=Image.open('./001_01_01_041_00.png')
 ##plt.imshow(data)
@@ -77,7 +86,7 @@ def creat_singleDR_GAN_list(img_dir, img_num=None):
 
     if not img_dir.endswith('/'):
         img_dir += '/'
-            
+
     img_list = os.listdir(img_dir)
     img_list.sort()
     if img_num>len(img_list) or img_num == None:
@@ -150,7 +159,7 @@ def creat_multiDR_GAN_totallist(img_dir, images_perID, img_num=None):
 
     if not img_dir.endswith('/'):
         img_dir += '/'
-            
+
     img_list = os.listdir(img_dir)
     img_list.sort()
     if img_num>len(img_list) or img_num == None:
@@ -178,18 +187,45 @@ def creat_multiDR_GAN_totallist(img_dir, images_perID, img_num=None):
     
     print("generate multiDRGAN txt successfully")
     fw.close()
+    
 # data_source='/data5/lixinpeng/dataset/multiPIE/train/'
 # creat_multiDR_GAN_totallist(data_source, 6)
 
+def creat_multiDR_GAN_probelist(fileList, images_perID, img_num=None):
+    with open(fileList, 'r') as file:
+        img_list=file.readlines()
+
+    if img_num>len(img_list) or img_num == None:
+        img_num = len(img_list)
+
+    # shuffle images and keep images_perID structure
+    img_array = np.array(img_list).reshape((-1, 20))
+    id_session_num, ill_num = img_array.shape
+    add_size = images_perID - (20%images_perID)
+    imgindex = np.concatenate((np.arange(ill_num), np.random.randint(20, size=add_size)), axis=0);random.shuffle(imgindex);
+    img_array = img_array[:, imgindex]
+    img_list = img_array.flatten().tolist()
+
+    fw = open(fileList[:-8]+'multi_list.txt','w')
+    fw.writelines(img_list)
+    
+    print("generate multiDRGAN txt successfully")
+    fw.close()
+
+# data_source='/home/lixinpeng/myDRGAN/data/iden_probe200_DR_GAN_list.txt'
+# creat_multiDR_GAN_probelist(data_source, 6)
+
 class multiPIE(Dataset):
     # 继承Dataset, 重载__init__, __getitem__, __len__
-    def __init__(self, fileList, transform=multiPLE_transform, list_reader=PIL_list_reader, loader=img_loader):
-        self.transform = transform
+    def __init__(self, fileList, transform_mode=None, list_reader=PIL_list_reader, loader=img_loader):
         self.channel_num = channel_num
         self.image_size = img_size
         self.loader    = loader
         self.Nz = 50
         self.imgList, self.pose_label, self.id_label, self.Np, self.Nd = list_reader(fileList)
+        if transform_mode=='train_transform': self.transform = multiPIE_train_transform
+        elif transform_mode=='test_transform': self.transform = multiPIE_test_transform
+        else: self.transform=None
         
     def __getitem__(self, index):
         imgPath = self.imgList[index]

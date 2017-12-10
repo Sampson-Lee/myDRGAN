@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # encoding: utf-8
+
+'''
+provide some useful functions to log learning information, plot curve of loss and generate gif.
+'''
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
 import imageio
 
-def log_learning(epoch, steps, modelname, save_dir, loss, loss_dict):
-    text = "EPOCH : {}, step : {}, model : {},  loss : {} ".format(epoch, steps, modelname, loss)
+def log_learning(epoch, totalepoch, steps, totalstep, modelname, loss, loss_dict, save_dir):
+    text = "EPOCH : {} | {}, step : {} | {}, model : {},  loss : {} ".format(epoch, totalepoch, steps, totalstep, modelname, loss)
     for (key, value) in  loss_dict.items():
          text = text + key + ' : ' + str(value) + ' '
     print(text)
