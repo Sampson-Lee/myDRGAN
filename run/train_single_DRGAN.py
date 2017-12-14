@@ -17,12 +17,12 @@ from util.mybuffer import ImageHistoryBuffer
 from model.weights import init_weights
 
 epoch_set = [2**(power+1)+2 for power in range(6)]
-ratio_set = [(liner+2)+1 for liner in range(6)]
+ratio_set = [2 for liner in range(6)]
 
 def train_single_DRGAN(dataloader, D_model, G_model, args):
     batch_size, Np, Nd, Nz = args.batch_size, args.Np, args.Nd, args.Nz
-    image_history_buffer = ImageHistoryBuffer((0, args.channel_num, args.img_size, args.img_size),
-                                              args.batch_size * 2, args.batch_size)
+    buffer_img = ImageHistoryBuffer((0, args.channel_num, args.img_size, args.img_size),
+                                              args.batch_size * 10, args.batch_size)
     D_model.train()
     G_model.train()
 
@@ -100,16 +100,24 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
             # Discriminator learning as followed
             if i % ratio == 0:
                 # we can use some tricks to training D
-                img_history = image_history_buffer.get_from_image_history_buffer()
-                image_history_buffer.add_to_image_history_buffer(generated.cpu().data.numpy())
-                gen_his = generated
-                if len(img_history) and args.use_history:
-                    print('using history buffer')
-                    img_history = Variable(torch.from_numpy(img_history))
-                    if args.cuda:
-                        img_history=img_history.cuda()
-                    gen_his[:args.batch_size // 2] = img_history
-                         
+                if args.use_history:
+                	buffer_img.add_to_image_history_buffer(generated.cpu().data.numpy())
+                	print('using history buffer')
+                	for iter_ in range(len(buffer_img.image_history_buffer)//buffer_img.batch_size):
+                		D_model.zero_grad()
+	                	img_history = buffer_img.image_history_buffer[(iter_*buffer_img.batch_size):(iter_+1)*buffer_img.batch_size]
+	                	img_history = Variable(torch.from_numpy(img_history).float())
+	                	if args.cuda:
+	                		img_history=img_history.cuda()
+		                real_output = D_model(batch_image)
+		                syn_output = D_model(img_history.detach()) # for D, we do not update the parameters to Generator and detach gradient
+		                L_d_id    = CE_loss(real_output[:, :Nd], batch_id_label)
+		                L_d_gan   = BCE_Loss(real_output[:, Nd].sigmoid(), batch_real_label) + BCE_Loss(syn_output[:, Nd].sigmoid(), batch_sys_label)
+		                L_d_pose  = CE_loss(real_output[:, Nd+1:], batch_pose_label)
+		                d_loss = L_d_gan + L_d_id + L_d_pose
+		                d_loss.backward()
+		                optimizer_D.step()
+
                 if args.use_softlabel:
                     print('using soft label')
                     batch_real_label = torch.ones(batch_size)*np.random.uniform(0.7,1.2)
@@ -123,9 +131,9 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
                     batch_sys_label = torch.ones(batch_size)
                     if args.cuda: batch_real_label, batch_sys_label=batch_real_label.cuda(), batch_sys_label.cuda();
                     batch_real_label, batch_sys_label = Variable(batch_real_label), Variable(batch_sys_label)
-                    
+                 
                 real_output = D_model(batch_image)
-                syn_output = D_model(gen_his.detach()) # for D, we do not update the parameters to Generator and detach gradient
+                syn_output = D_model(generated.detach()) # for D, we do not update the parameters to Generator and detach gradient
                                     
                 # three loss: L_d_id, L_d_gan, L_d_pose
                 # we do not use sysimg classification loss to update D

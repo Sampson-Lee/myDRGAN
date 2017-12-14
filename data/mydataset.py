@@ -3,10 +3,6 @@
 Created on Tue Nov 14 17:20:13 2017
 
 @author: Sampson
-
-1. use it to create image list for dataloader
-2. modify to set porper preprocess and provide dataloader iterator for training 
-
 """
 import torch
 import numpy as np
@@ -20,6 +16,7 @@ img_size = 96
 Nd=0
 Np=0
 Nz=50
+
 
 pose_labels_dict = {
              '041':0,'050':1,'051':2,

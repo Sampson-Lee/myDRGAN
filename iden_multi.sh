@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 PYDIR=/data5/lixinpeng/anaconda2/bin
-MODELDIR=/home/lixinpeng/myDRGANv3/snapshot/Multi/2017-12-09_09-15-29/
+MODELDIR=/home/lixinpeng/myDRGANv3/snapshot/Multi/2017-12-09_22-26-31/
 DATA=/home/lixinpeng/myDRGAN/data/
 PROBE=("051" "050" "041" "190" "200")
-DEVICE=4
+DEVICE=1,3
 
 for probeindex in $( seq 0 4)
 do

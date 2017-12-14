@@ -57,7 +57,7 @@ def representation_learning(dataloader, G_model, args):
             
     if args.mode=='idenmulti':
         for epo in range(iden_epoch):
-            G_model.load_state_dict(torch.load('{}/epoch{}_G.pth'.format(args.modeldir, epo+20)))
+            G_model.load_state_dict(torch.load('{}epoch{}_G.pth'.format(args.modeldir, epo+20)))
             # G_model.load_state_dict(torch.load(args.modeldir+'best_multi_G.pth'))
             
             image_number = 0
@@ -100,8 +100,7 @@ def representation_learning(dataloader, G_model, args):
     accsavedir = args.modeldir + args.data_path.split('/')[-1][:-9] + '_rate.txt'
     print(accsavedir)
     with open(accsavedir,'a') as f:
-        sortindex = np.argsort(accarr)
-        for index in sortindex:
-            f.write("{}:{}\n".format(index+20, accarr[index]))
+        for acc in accarr:
+            f.write("{}\n".format(acc))
     
     return 'representation_learning successfully'
