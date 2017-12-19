@@ -4,8 +4,11 @@
 import numpy as np
 import data.mydataset as mydataset
 from sklearn.metrics.pairwise import pairwise_distances
-import torch
+import torch, sys
 from torch.autograd import Variable
+
+sys.path.append("..")
+from util.mylog import log_learning, plot_loss
 
 def representation_learning(dataloader, G_model, args):
     G_model.eval()
@@ -97,10 +100,11 @@ def representation_learning(dataloader, G_model, args):
             print('the acc of epoch{}_G is {}\n'.format(epo+20, acc))
             accarr[epo] = acc
     
-    accsavedir = args.modeldir + args.data_path.split('/')[-1][:-9] + '_rate.txt'
+    accsavedir = args.modeldir + args.data_path.split('/')[-1][:-9]
     print(accsavedir)
-    with open(accsavedir,'a') as f:
+    with open(accsavedir + '_rate.txt','a') as f:
         for acc in accarr:
             f.write("{}\n".format(acc))
+    plot_loss(accsavedir + '_val.png', range(iden_epoch), {'val_acc':accarr})
     
     return 'representation_learning successfully'

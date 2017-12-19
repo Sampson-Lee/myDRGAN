@@ -21,9 +21,9 @@ def cal_acc(real_output, syn_output, id_label_tensor, pose_label_tensor, Nd):
     total_precision = total_precision.data[0]
     return total_precision
 
-def cal_acc(output_id, id_label_tensor):
+def cal_acc_id(output_id, id_label_tensor):
     _, id_real_ans = torch.max(output_id, 1) # return (max, max_indices)
-    id_real_precision = (id_real_ans==id_label_tensor).type(torch.FloatTensor).sum() / real_output.size()[0]
+    id_real_precision = (id_real_ans==id_label_tensor).type(torch.FloatTensor).sum() / output_id.size()[0]
     # Variable(FloatTensor) -> Float
     id_real_precision = id_real_precision.data[0]
     return id_real_precision

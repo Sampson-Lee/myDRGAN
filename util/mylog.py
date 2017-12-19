@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 # encoding: utf-8
-
-'''
-provide some useful functions to log learning information, plot curve of loss and generate gif.
-'''
 import matplotlib.pyplot as plt
 from PIL import Image
 import os

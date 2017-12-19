@@ -17,7 +17,6 @@ Nd=0
 Np=0
 Nz=50
 
-
 pose_labels_dict = {
              '041':0,'050':1,'051':2,
              '080':3,'090':4,'130':5,
@@ -45,6 +44,24 @@ multiPIE_test_transform = transforms.Compose([
                             transforms.Scale(img_size),
                             transforms.ToTensor(),
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ])
+
+multiPIE_train_aug_transform = transforms.Compose([
+                            transforms.CenterCrop(160),
+                            transforms.Scale(100),
+                            transforms.RandomCrop(img_size),
+                            transforms.RandomHorizontalFlip(),
+                            # transforms.RandomGrayscale(),
+                            # transforms.ColorJitter(),
+                            transforms.ToTensor(),
+                            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ])
+
+multiPIE_test_aug_transform = transforms.Compose([
+                            transforms.CenterCrop(160),
+                            transforms.Scale(img_size),
+                            transforms.ToTensor(),
+                            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                            ])
 
 def img_loader(img_path):
@@ -97,7 +114,7 @@ def creat_singleDR_GAN_list(img_dir, img_num=None):
     print("generate singleDRGAN txt successfully")
     fw.close()
 
-# data_source='/data5/lixinpeng/dataset/multiPIE/train/'
+# data_source='/data/lixinpeng/DataBase/multiPIE/test/'
 # creat_singleDR_GAN_list(data_source)
 
 def creat_multiDR_GAN_list(img_dir, images_perID, img_num=None):
@@ -222,6 +239,8 @@ class multiPIE(Dataset):
         self.imgList, self.pose_label, self.id_label, self.Np, self.Nd = list_reader(fileList)
         if transform_mode=='train_transform': self.transform = multiPIE_train_transform
         elif transform_mode=='test_transform': self.transform = multiPIE_test_transform
+        elif transform_mode=='trainaug_transform': self.transform = multiPIE_train_aug_transform
+        elif transform_mode=='testaug_transform': self.transform = multiPIE_test_aug_transform
         else: self.transform=None
         
     def __getitem__(self, index):

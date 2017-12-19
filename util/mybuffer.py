@@ -53,6 +53,7 @@ class ImageHistoryBuffer(object):
         :return: A random sample of `nb_to_get` images from the image history buffer, or an empty np array if the image
                  history buffer is empty.
         """
+        np.random.shuffle(self.image_history_buffer)
         if not nb_to_get:
             nb_to_get = self.batch_size // 2
 
