@@ -9,6 +9,7 @@ mpl.use('Agg')
 import torch
 from torch import nn, optim
 from torch.autograd import Variable
+from torch.optim import lr_scheduler
 
 sys.path.append("..")
 from util.mylog import log_learning, plot_loss, imgtogif
@@ -16,8 +17,8 @@ from util.mylog import log_learning, plot_loss, imgtogif
 from util.mybuffer import ImageHistoryBuffer
 from model.weights import init_weights
 
-epoch_set = [2**(power+1)+2 for power in range(6)]
-ratio_set = [liner+2+1 for liner in range(6)]
+epoch_set = [0, 6, 12, 18, 24, 30, 36]
+ratio_set = [2**power+1 for power in range(7)]
 
 def train_single_DRGAN(dataloader, D_model, G_model, args):
     batch_size, Np, Nd, Nz = args.batch_size, args.Np, args.Nd, args.Nz
@@ -33,6 +34,7 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
 
     optimizer_D = optim.Adam(D_model.parameters(), lr = lr_Adam, betas=(beta1_Adam, beta2_Adam))
     optimizer_G = optim.Adam(G_model.parameters(), lr = lr_Adam, betas=(beta1_Adam, beta2_Adam))
+    scheduler_D = lr_scheduler.MultiStepLR(optimizer_D, milestones=[30, 35], gamma=0.1)
     CE_loss = nn.CrossEntropyLoss()
     BCE_Loss = nn.BCELoss()
     
@@ -46,10 +48,9 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
     print("Parameters:")
     with open('{}/Parameters.txt'.format(save_dir),'a') as f:
         for attr, value in sorted(args.__dict__.items()):
-            text ="\t{}={}\n".format(attr.upper(), value)
+            text ="{}={}\n".format(attr.upper(), value)
             print(text)
             f.write(text)
-        text = 'epoch 0 - ratio 1:1\n'
         print(text)
         f.write(text)
         for epo, rat in zip(epoch_set, ratio_set):
@@ -61,6 +62,8 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
     for epoch in epo_list:
         steps = 0
         sample_index = random.randint(0,len(dataloader))
+        if args.use_allhistory_epoch: scheduler_D.step()
+        print('learning rate is {}'.format(optimizer_D.param_groups[0]['lr']))
         if epoch in epoch_set:
             ratio = ratio_set[epoch_set.index(epoch)]
             print('ratio is 1:{} now! \n'.format(ratio-1))
@@ -79,19 +82,22 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
             pose_code[range(batch_size), pose_code_label] = 1
             pose_code_label = torch.LongTensor(pose_code_label.tolist())
             pose_code = torch.FloatTensor(pose_code.tolist())
+            batch_pose_code = np.zeros((batch_size, Np))
+            batch_pose_code[range(batch_size), batch_pose_label] = 1
+            batch_pose_code = torch.FloatTensor(pose_code.tolist())
             # use cuda for label and input
             if args.cuda:
                 batch_image, batch_id_label, batch_pose_label, batch_real_label, batch_sys_label = \
                     batch_image.cuda(), batch_id_label.cuda(), batch_pose_label.cuda(), batch_real_label.cuda(), batch_sys_label.cuda()
 
-                noise, pose_code, pose_code_label = \
-                    noise.cuda(), pose_code.cuda(), pose_code_label.cuda()
+                noise, pose_code, pose_code_label, batch_pose_code = \
+                    noise.cuda(), pose_code.cuda(), pose_code_label.cuda(), batch_pose_code.cuda()
             # use Variable for label and input
             batch_image, batch_id_label, batch_pose_label, batch_real_label, batch_sys_label = \
                 Variable(batch_image), Variable(batch_id_label), Variable(batch_pose_label), Variable(batch_real_label), Variable(batch_sys_label)
 
-            noise, pose_code, pose_code_label = \
-                Variable(noise), Variable(pose_code), Variable(pose_code_label)
+            noise, pose_code, pose_code_label, batch_pose_code = \
+                Variable(noise), Variable(pose_code), Variable(pose_code_label), Variable(batch_pose_code)
             
             # generator forward
             generated = G_model(batch_image, pose_code, noise) #forward
@@ -101,25 +107,25 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
             # Discriminator learning as followed
             if i % ratio == 0:
                 # we can use some tricks to training D
-                if args.use_allhistory_epoch and epoch>=10:
-                	buffer_img.add_to_image_history_buffer(generated.cpu().data.numpy())
-                	print('using all history buffer')
-                	for iter_ in range(len(buffer_img.image_history_buffer)//buffer_img.batch_size):
-                		D_model.zero_grad()
-	                	img_history = buffer_img.image_history_buffer[(iter_*buffer_img.batch_size):(iter_+1)*buffer_img.batch_size]
-	                	img_history = Variable(torch.from_numpy(img_history).float())
-            			bufferbatch_sys_label = Variable(torch.zeros(buffer_img.batch_size))
-	                	if args.cuda:
-	                		img_history=img_history.cuda()
-	                		bufferbatch_sys_label=bufferbatch_sys_label.cuda()
-		                real_output = D_model(batch_image)
-		                syn_output = D_model(img_history.detach()) # for D, we do not update the parameters to Generator and detach gradient
-		                L_d_id    = CE_loss(real_output[:, :Nd], batch_id_label)
-		                L_d_gan   = BCE_Loss(real_output[:, Nd].sigmoid(), batch_real_label) + BCE_Loss(syn_output[:, Nd].sigmoid(), bufferbatch_sys_label)
-		                L_d_pose  = CE_loss(real_output[:, Nd+1:], batch_pose_label)
-		                d_loss = L_d_gan + L_d_id + L_d_pose
-		                d_loss.backward()
-		                optimizer_D.step()
+                if args.use_allhistory_epoch and epoch>=25:
+                    buffer_img.add_to_image_history_buffer(generated.cpu().data.numpy())
+                    print('using all history buffer')
+                    for iter_ in range(len(buffer_img.image_history_buffer)//buffer_img.batch_size):
+                        D_model.zero_grad()
+                        img_history = buffer_img.image_history_buffer[(iter_*buffer_img.batch_size):(iter_+1)*buffer_img.batch_size]
+                        img_history = Variable(torch.from_numpy(img_history).float())
+                        bufferbatch_sys_label = Variable(torch.zeros(buffer_img.batch_size))
+                        if args.cuda:
+                            img_history=img_history.cuda()
+                            bufferbatch_sys_label=bufferbatch_sys_label.cuda()
+                        real_output = D_model(batch_image)
+                        syn_output = D_model(img_history.detach()) # for D, we do not update the parameters to Generator and detach gradient
+                        L_d_id    = CE_loss(real_output[:, :Nd], batch_id_label)
+                        L_d_gan   = BCE_Loss(real_output[:, Nd].sigmoid(), batch_real_label) + BCE_Loss(syn_output[:, Nd].sigmoid(), bufferbatch_sys_label)
+                        L_d_pose  = CE_loss(real_output[:, Nd+1:], batch_pose_label)
+                        d_loss = L_d_gan + L_d_id + L_d_pose
+                        d_loss.backward()
+                        optimizer_D.step()
 
                 if args.use_history_epoch and epoch>=10:
                     buffer_img.add_to_image_history_buffer(generated.cpu().data.numpy())
@@ -183,16 +189,20 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
             # Generator learning as followed
             else:
                 syn_output=D_model(generated)   # no detach here
-
+                reconstructed = G_model(generated, batch_pose_code, noise)
+                
                 L_g_id    = CE_loss(syn_output[:, :Nd], batch_id_label)
                 L_g_gan   = BCE_Loss(syn_output[:, Nd].sigmoid().clamp(min=eps), batch_real_label) # for G, we use real_label in loss
                 L_g_pose  = CE_loss(syn_output[:, Nd+1:], pose_code_label)
-
+                L_g_rec = torch.mean(torch.abs(batch_image - reconstructed))
+                
                 g_loss = L_g_gan + L_g_id + L_g_pose
+                if args.use_rec:
+                    g_loss += 10*L_g_rec
 
                 g_loss.backward()
                 optimizer_G.step()                
-                loss_dict = {'g_loss':g_loss.data[0], 'L_g_id':L_g_id.data[0], 'L_g_gan':L_g_gan.data[0], 'L_g_pose':L_g_pose.data[0]}
+                loss_dict = {'g_loss':g_loss.data[0], 'L_g_id':L_g_id.data[0], 'L_g_gan':L_g_gan.data[0], 'L_g_pose':L_g_pose.data[0], 'L_g_rec':L_g_rec.data[0]}
                 log_learning(epoch, totalepochs, steps, totalsteps, 'SingleDRGAN-G', g_loss.data[0], loss_dict, save_dir)
 
             #  save generated images in some epoches
@@ -204,7 +214,7 @@ def train_single_DRGAN(dataloader, D_model, G_model, args):
             
         # save loss in each epoch
         loss_log.append([d_loss.data[0], g_loss.data[0]])
-        g_loss_log.append([L_g_gan.data[0], L_g_id.data[0], L_g_pose.data[0]])
+        g_loss_log.append([L_g_gan.data[0], L_g_id.data[0], L_g_pose.data[0], L_g_rec.data[0]])
         d_loss_log.append([L_d_gan.data[0], L_d_id.data[0], L_d_pose.data[0]])
         # save model in some epoches
         if epoch % args.save_freq == 0:

@@ -18,10 +18,11 @@ if __name__=="__main__":
     parser.add_argument('-batch_size', type=int, default=8, help='batch size for training [default: 8]')
     parser.add_argument('-use_switch', action='store_true', default=False, help='enable the model switch')
     parser.add_argument('-use_history_epoch', action='store_true', default=False, help='enable the hitory buffer')
-    parser.add_argument('-use_allhistory_epoch', action='store_true', default=False, help='enable the hitory buffer')
-    parser.add_argument('-use_updatingmore_epoch', action='store_true', default=False, help='enable the hitory buffer')
-    parser.add_argument('-use_softlabel', action='store_true', default=False, help='enable the hitory buffer')
-    parser.add_argument('-use_noiselabel', action='store_true', default=False, help='enable the hitory buffer')
+    parser.add_argument('-use_allhistory_epoch', action='store_true', default=False, help='enable all the hitory buffer')
+    parser.add_argument('-use_updatingmore_epoch', action='store_true', default=False, help='enable updating more time per epoch')
+    parser.add_argument('-use_softlabel', action='store_true', default=False, help='enable the soft label')
+    parser.add_argument('-use_noiselabel', action='store_true', default=False, help='enable the noise label')
+    parser.add_argument('-use_rec', action='store_true', default=False, help='enable the reconstruct loss')
     parser.add_argument('-cuda', action='store_true', default=True, help='enable the gpu')
     parser.add_argument('-device', type=str, default='0', help='the number of gpu to use')
     
@@ -36,7 +37,7 @@ if __name__=="__main__":
     parser.add_argument('-Nf', type=int, default=320, help='Nf : Dimension of features')
     parser.add_argument('-Nz', type=int, default=50, help='Nz : Dimension of noise vector')
 
-    # saving parameterss
+    # saving parameters
     parser.add_argument('-save_dir', type=str, default='./snapshot', help='where to save the snapshot')
     parser.add_argument('-save_freq', type=int, default=1, help='save learned model for every "-save-freq" epoch')
     

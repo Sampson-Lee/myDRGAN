@@ -1,5 +1,9 @@
-#!/usr/bin/env python
-# encoding: utf-8
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Dec 22 21:52:34 2017
+
+@author: Sampson
+"""
 
 import sys, datetime, os
 import numpy as np
@@ -203,10 +207,10 @@ def main():
     model.cuda()
     
     if args.use_Adam:
-    	optimizer = optim.Adam(model.parameters(), lr = args.lr_Adam, betas=(args.beta1_Adam, args.beta2_Adam))
+        optimizer = optim.Adam(model.parameters(), lr = args.lr_Adam, betas=(args.beta1_Adam, args.beta2_Adam))
     if args.use_SGD:
-    	optimizer = torch.optim.SGD(model.parameters(), lr = args.lr_SGD, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
+        optimizer = torch.optim.SGD(model.parameters(), lr = args.lr_SGD, momentum=args.momentum, weight_decay=args.weight_decay)
+        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
     train_log=[]; val_log=[];
     # train

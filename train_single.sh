@@ -2,9 +2,9 @@
 LOG=./log-`date +%Y-%m-%d-%H:%M:%S`.log
 PYDIR=/data5/lixinpeng/anaconda2/bin
 DATA=/home/lixinpeng/myDRGAN/data/trainsingle_DR_GAN_list.txt
-DEVICE=4
+DEVICE=4,5
 
 nohup $PYDIR/python main.py \
 -mode trainsingle -batch_size 64 -epochs 40 -save_freq 1 -data_path $DATA -device $DEVICE \
--use_history_epoch \
+-use_rec \
 2>&1 | tee $LOG&

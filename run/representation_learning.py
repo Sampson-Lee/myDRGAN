@@ -51,10 +51,11 @@ def representation_learning(dataloader, G_model, args):
                 maxindex = np.argsort(Distance, axis=0)[0,:]
                 match = (gallery_idlabel[torch.LongTensor(maxindex)] == batch_id_label)
                 # print(match)
-                acc += float(match.sum())/match.shape[0]
+                if i==0: match_arr=match;
+                else: match_arr=np.concatenate((match_arr, match), axis=0)
                 # if i == 2: break;
     
-            acc = acc/(i+1)
+            acc = float(match_arr.sum())/match_arr.shape[0]
             print('the acc of epoch{}_G is {}\n'.format(epo+20, acc))
             accarr[epo] = acc
             
